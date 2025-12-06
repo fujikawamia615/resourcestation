@@ -3,13 +3,12 @@ import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import live2d from "vue3-live2d";
 import ResourceCard from './components/ResourceCard.vue';
-let tips = ref({
-  visibilitychange: [{
-    selector: 'document',
-    texts: ['哇，你终于回来了～']
-  }
-  ]
+onMounted(() => {
+  document.documentElement.classList.add('loaded');
 });
+const tips = ref({ visibilitychange: [{ selector: 'document', texts: ['哇，你终于回来了～'] }] });
+const searchResults = ref([]);
+const isSearching = ref(false);
 const username = ref('');
 const password = ref('');
 const loginError = ref('');
@@ -22,10 +21,34 @@ const height = ref(400);
 const currentFilter = ref(null);
 const filteredResources = ref([]);
 const showAllResources = ref(false);
-
-
 const VALID_USERNAME = 'xixixi';
 const VALID_PASSWORD = '123456';
+const resources = ref([]);
+const loading = ref(false);
+const error = ref(null);
+const API_BASE = 'http://39.105.154.74:8080';
+const featuredResources = computed(() => {
+  if (!resources.value || resources.value.length === 0) return [];
+  return [...resources.value]
+    .sort((a, b) => (b.times || 0) - (a.times || 0))
+    .slice(0, 6);
+});
+
+const latestResources = computed(() => {
+  if (!resources.value || resources.value.length === 0) return [];
+  return [...resources.value]
+    .sort((a, b) => {
+      const timeA = new Date(a.uploadTime).getTime();
+      const timeB = new Date(b.uploadTime).getTime();
+      return timeB - timeA;
+    })
+    .slice(0, 6);
+});
+const rankingResources = computed(() => {
+  return [...resources.value]
+    .sort((a, b) => (b.times || 0) - (a.times || 0))
+    .slice(0, 25);
+});
 
 function handleLogin() {
   if (username.value === VALID_USERNAME && password.value === VALID_PASSWORD) {
@@ -36,7 +59,6 @@ function handleLogin() {
     loginError.value = '用户名或密码错误！';
   }
 }
-
 function logout() {
   isLoggedIn.value = false;
   username.value = '';
@@ -47,13 +69,6 @@ function logout() {
   showAllResources.value = false;
   showRankingView.value = false;
 }
-
-
-const resources = ref([]);
-const loading = ref(false);
-const error = ref(null);
-
-const API_BASE = 'http://39.105.154.74:8080';
 
 async function fetchResources() {
   loading.value = true;
@@ -69,7 +84,6 @@ async function fetchResources() {
   }
 }
 
-
 function getCoverUrl(coverName) {
   return `${API_BASE}/api/download/cover/${encodeURIComponent(coverName)}`;
 }
@@ -83,7 +97,6 @@ function handleImageError(e) {
   e.target.style.display = 'none';
 }
 
-
 function formatSize(bytes) {
   if (!bytes || bytes <= 0) return '0 B';
   const k = 1024;
@@ -91,15 +104,6 @@ function formatSize(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
-
-
-onMounted(() => {
-  document.documentElement.classList.add('loaded');
-});
-
-
-const searchResults = ref([]);
-const isSearching = ref(false);
 
 async function performSearch() {
   if (!searchQuery.value.trim()) {
@@ -122,6 +126,7 @@ async function performSearch() {
     isSearching.value = false;
   }
 }
+
 function showRanking() {
   showRankingView.value = true;
   if (resources.value.length === 0) fetchResources();
@@ -152,36 +157,12 @@ function clearFilter() {
   showAllResources.value = false;
 }
 
-
 function viewAllResources() {
   showAllResources.value = true;
   currentFilter.value = '全部';
   filteredResources.value = resources.value;
 }
 
-
-const featuredResources = computed(() => {
-  if (!resources.value || resources.value.length === 0) return [];
-  return [...resources.value]
-    .sort((a, b) => (b.times || 0) - (a.times || 0))
-    .slice(0, 6);
-});
-
-const latestResources = computed(() => {
-  if (!resources.value || resources.value.length === 0) return [];
-  return [...resources.value]
-    .sort((a, b) => {
-      const timeA = new Date(a.uploadTime).getTime();
-      const timeB = new Date(b.uploadTime).getTime();
-      return timeB - timeA;
-    })
-    .slice(0, 6);
-});
-const rankingResources = computed(() => {
-  return [...resources.value]
-    .sort((a, b) => (b.times || 0) - (a.times || 0))
-    .slice(0, 25);
-});
 </script>
 
 <template>
@@ -196,17 +177,17 @@ const rankingResources = computed(() => {
       </div>
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="input-group">
-          <input v-model="username" type="text" placeholder="用户名（xixixi）" class="input" required />
+          <input v-model="username" type="text" placeholder="用户名" class="input" required />
         </div>
         <div class="input-group">
-          <input v-model="password" type="password" placeholder="密码（123456）" class="input" required />
+          <input v-model="password" type="password" placeholder="密码" class="input" required />
         </div>
         <button type="submit" class="login-btn">登录</button>
         <p v-if="loginError" class="error">{{ loginError }}</p>
+        <button type="submit" class="login-btn">注册</button>
       </form>
     </div>
   </div>
-
   <div v-else class="main-layout">
     <div v-if="showSearchView" class="search-view">
       <header class="search-header">
@@ -382,7 +363,6 @@ body {
   background: transparent;
 }
 
-
 .login-wrapper {
   display: flex;
   justify-content: center;
@@ -437,7 +417,7 @@ body {
 }
 
 .login-form .login-btn {
-  width: 100%;
+  width: 40%;
   padding: 14px;
   background: linear-gradient(90deg, #6a5af9, #8a7bff);
   color: white;
@@ -447,7 +427,7 @@ body {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  margin-bottom: 16px;
+  margin:14px 5%;
 }
 
 .login-form .login-btn:hover {
@@ -882,7 +862,6 @@ body {
   box-shadow: 0 4px 15px rgba(106, 90, 249, 0.3);
 }
 
-/* ===== 响应式 ===== */
 @media (max-width: 768px) {
 
   .header-content,
