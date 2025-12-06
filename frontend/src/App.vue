@@ -22,8 +22,6 @@ const height = ref(400);
 const currentFilter = ref(null);
 const filteredResources = ref([]);
 const showAllResources = ref(false);
-const VALID_USERNAME = 'xixixi';
-const VALID_PASSWORD = '123456';
 const resources = ref([]);
 const loading = ref(false);
 const error = ref(null);
@@ -92,14 +90,43 @@ function toggleView() {
     password.value = '';
     loginError.value = '';
 }
-function handleLogin() {
-  if (username.value === VALID_USERNAME && password.value === VALID_PASSWORD) {
+async function handleLogin() {
     loginError.value = '';
-    isLoggedIn.value = true;
-    fetchResources();
-  } else {
-    loginError.value = '用户名或密码错误！';
-  }
+    
+    // 简单的前端验证
+    if (!username.value || !password.value) {
+        loginError.value = '用户名和密码不能为空！';
+        return;
+    }
+    
+    // 确保当前处于登录视图
+    if (showRegisterView.value) return; 
+
+    try {
+        // 调用后端登录接口
+        const response = await axios.post(`${API_BASE}/api/login`, {
+            username: username.value,
+            password: password.value 
+        });
+
+        // 登录成功 (后端返回 200 OK)
+        if (response.status === 200) {
+            loginError.value = '';
+            // 设置登录状态为 true
+            isLoggedIn.value = true;
+            // 登录成功后，获取资源数据
+            fetchResources();
+        } 
+    } catch (err) {
+        // 登录失败 (后端返回 400 Bad Request)
+        console.error('登录失败:', err);
+        if (err.response && err.response.data) {
+            // 显示后端返回的错误信息（如“用户名或密码错误”）
+            loginError.value = err.response.data;
+        } else {
+            loginError.value = '登录失败，无法连接到服务器。';
+        }
+    }
 }
 function logout() {
   isLoggedIn.value = false;

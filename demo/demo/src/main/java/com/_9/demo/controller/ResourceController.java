@@ -52,6 +52,27 @@ public class ResourceController {
         // 返回成功信息
         return ResponseEntity.ok("注册成功!");
     }
+    @PostMapping("/login")
+    public ResponseEntity<?> loginUser(@RequestBody User loginRequest) {
+        // 1. 根据用户名查找用户
+        return userRepository.findByUsername(loginRequest.getUsername())
+            .map(user -> {
+                // 2. 找到用户后，直接比较明文密码
+                if (user.getPassword().equals(loginRequest.getPassword())) {
+                    // 登录成功
+                    // 实际项目中这里会生成 Session 或 Token
+                    // 练习项目中我们只返回一个成功信号
+                    return ResponseEntity.ok("登录成功");
+                } else {
+                    // 密码错误
+                    return ResponseEntity.badRequest().body("用户名或密码错误");
+                }
+            })
+            .orElseGet(() -> {
+                // 用户名不存在
+                return ResponseEntity.badRequest().body("用户名或密码错误");
+            });
+    }
     @GetMapping("/resources")
     public List<com._9.demo.model.Resource> getAllResources() {
         return resourceRepository.findAll();
