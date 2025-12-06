@@ -1,9 +1,9 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed ,h} from 'vue';
 import axios from 'axios';
 import live2d from "vue3-live2d";
 import ResourceCard from './components/ResourceCard.vue';
-import { NInput, NButton, NForm, NFormItem,NConfigProvider,NAvatar,NDropdown } from 'naive-ui';
+import { NInput, NButton, NForm, NFormItem,NConfigProvider,NAvatar, NDropdown, NModal, NCard, NDataTable, NEmpty } from 'naive-ui';
 onMounted(() => {
   document.documentElement.classList.add('loaded');
 });
@@ -34,9 +34,19 @@ const dropdownOptions = ref([
         icon: () => '📜'
     }
 ]);
+const showDocReaderModal = ref(false);    // 控制阅读器模态框显示
+const currentDocUrl = ref('');           // 文档的下载 URL
+const currentDocName = ref('');          // 文档名称
+const currentDocContent = ref('正在加载文档内容...'); // 新增状态：存放获取到的 TXT 内容
+const showVideoPlayerModal = ref(false); // 控制播放器模态框显示
+const currentVideoUrl = ref('');         // 当前播放视频的URL
+const currentVideoName = ref('');
 const tips = ref({ visibilitychange: [{ selector: 'document', texts: ['哇，你终于回来了～'] }] });
 const searchResults = ref([]);
 const isSearching = ref(false);
+const showAudioPlayerModal = ref(false); // 控制音乐播放器模态框显示
+const currentAudioUrl = ref('');         // 当前播放音乐的 URL
+const currentAudioName = ref('');
 const username = ref('');
 const password = ref('');
 const loginError = ref('');
@@ -76,6 +86,73 @@ const rankingResources = computed(() => {
     .sort((a, b) => (b.times || 0) - (a.times || 0))
     .slice(0, 25);
 });
+function playAudio(resource) {
+    // 音乐播放使用流媒体接口
+    currentAudioUrl.value = getResourceStreamUrl(resource);
+    currentAudioName.value = resource.name;
+    
+    showAudioPlayerModal.value = true;
+}
+function readDocument(resource) {
+    const docUrl = getResourceDownloadUrl(resource);
+    
+    currentDocUrl.value = docUrl;
+    currentDocName.value = resource.name;
+    currentDocContent.value = '正在加载文档内容...'; 
+    showDocReaderModal.value = true;
+
+    // 1. 使用 fetch 获取原始 Blob 数据
+    fetch(docUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('网络请求失败: ' + response.statusText);
+            }
+            return response.blob(); // <-- 获取 Blob 原始数据
+        })
+        .then(blob => {
+            // 2. 使用 FileReader API 读取 Blob
+            const reader = new FileReader();
+            
+            // ❗ 核心：指定 GBK 编码进行读取 ❗
+            reader.readAsText(blob, 'GBK'); 
+
+            // 3. 监听读取完成事件
+            reader.onload = function(event) {
+                if (event.target.readyState === FileReader.DONE) {
+                    // 成功解码后的文本
+                    currentDocContent.value = event.target.result;
+                }
+            };
+
+            // 4. 监听读取错误事件
+            reader.onerror = function() {
+                throw new Error('FileReader 读取文件失败');
+            };
+        })
+        .catch(error => {
+            console.error("加载文档失败:", error);
+            currentDocContent.value = '加载文档内容失败，请检查URL或编码设置是否为GBK。';
+        });
+}
+function getResourceStreamUrl(resource) {
+    if (!resource.fileType || !resource.fileKey) return '#';
+    const encodedType = encodeURIComponent(resource.fileType);
+    const encodedKey = encodeURIComponent(resource.fileKey);
+    // ❗ 对应后端新增的 /stream 接口 ❗
+    return `${API_BASE}/api/stream/resource/${encodedType}/${encodedKey}`;
+}
+
+// -----------------------------------------------------------------
+// 新增函数 2: 处理 ResourceCard 发出的 'play' 事件
+// -----------------------------------------------------------------
+function playVideo(resource) {
+    // 1. 获取流媒体 URL
+    currentVideoUrl.value = getResourceStreamUrl(resource);
+    currentVideoName.value = resource.name;
+    
+    // 2. 显示播放器模态框
+    showVideoPlayerModal.value = true;
+}
 function handleDropdownSelect(key) {
     showDropdown.value = false; // 关闭菜单
     switch (key) {
@@ -331,7 +408,7 @@ function viewAllResources() {
         <div v-else-if="searchResults.length > 0" class="resource-grid">
           <ResourceCard v-for="resource in searchResults" :key="resource.id" :resource="resource"
             :getCoverUrl="getCoverUrl" :getResourceDownloadUrl="getResourceDownloadUrl" :formatSize="formatSize"
-            :handleImageError="handleImageError" />
+            :handleImageError="handleImageError" @play="playVideo" @read="readDocument" @audio="playAudio"/>
         </div>
         <div v-else-if="searchQuery && !isSearching" class="no-results">
           <p>没有找到相关资源</p>
@@ -385,7 +462,7 @@ function viewAllResources() {
         <div class="resource-grid">
           <ResourceCard v-for="resource in filteredResources" :key="resource.id" :resource="resource"
             :getCoverUrl="getCoverUrl" :getResourceDownloadUrl="getResourceDownloadUrl" :formatSize="formatSize"
-            :handleImageError="handleImageError" />
+            :handleImageError="handleImageError" @play="playVideo" @read="readDocument" @audio="playAudio"/>
         </div>
       </div>
     </div>
@@ -439,7 +516,7 @@ function viewAllResources() {
           </div>
           <ResourceCard v-for="resource in featuredResources" :key="resource.id" :resource="resource"
             :getCoverUrl="getCoverUrl" :getResourceDownloadUrl="getResourceDownloadUrl" :formatSize="formatSize"
-            :handleImageError="handleImageError" />
+            :handleImageError="handleImageError" @play="playVideo" @read="readDocument" @audio="playAudio"/>
         </div>
 
         <div class="section-header">
@@ -449,11 +526,69 @@ function viewAllResources() {
         <div class="resource-grid">
           <ResourceCard v-for="resource in latestResources" :key="resource.id" :resource="resource"
             :getCoverUrl="getCoverUrl" :getResourceDownloadUrl="getResourceDownloadUrl" :formatSize="formatSize"
-            :handleImageError="handleImageError" />
+            :handleImageError="handleImageError" @play="playVideo" @read="readDocument" @audio="playAudio"/>
         </div>
       </div>
     </div>
   </div>
+  <n-modal v-model:show="showVideoPlayerModal" preset="card" :mask-closable="false" :style="{ width: '90%', maxWidth: '1000px' }">
+    <template #header>
+        <h2>▶️ 正在播放：{{ currentVideoName }}</h2>
+    </template>
+    
+    <div class="video-player-container">
+        <video 
+            v-if="showVideoPlayerModal" 
+            :src="currentVideoUrl" 
+            controls 
+            autoplay 
+            class="video-element"
+            disablePictureInPicture 
+            controlsList="nodownload" 
+        >
+            抱歉，您的浏览器不支持此视频格式。
+        </video>
+        <n-empty v-else description="视频播放器已卸载"> </n-empty>
+    </div>
+    
+    <template #footer>
+        <n-button @click="showVideoPlayerModal = false">关闭播放器</n-button>
+    </template>
+</n-modal>
+<n-modal v-model:show="showDocReaderModal" preset="card" :style="{ width: '90%', maxWidth: '900px', height: '90vh' }">
+    <template #header>
+        <h2>📖 阅读：{{ currentDocName }}</h2>
+    </template>
+    
+    <div class="doc-reader-container">
+        <pre class="txt-content">{{ currentDocContent }}</pre>
+    </div>
+    
+    <template #footer>
+        <n-button @click="showDocReaderModal = false">关闭阅读器</n-button>
+    </template>
+</n-modal>
+<n-modal v-model:show="showAudioPlayerModal" preset="card" :style="{ width: '90%', maxWidth: '600px' }">
+    <template #header>
+        <h2>🎧 正在播放：{{ currentAudioName }}</h2>
+    </template>
+    
+    <div class="audio-player-container">
+        <audio 
+            v-if="showAudioPlayerModal" 
+            :src="currentAudioUrl" 
+            controls 
+            autoplay 
+            class="audio-element"
+        >
+            抱歉，您的浏览器不支持此音频格式或加载失败。
+        </audio>
+    </div>
+    
+    <template #footer>
+        <n-button @click="showAudioPlayerModal = false">关闭播放器</n-button>
+    </template>
+</n-modal>
 </template>
 <style>
 html,
@@ -1054,5 +1189,49 @@ body {
     align-items: flex-start;
     gap: 12px;
   }
+}
+.video-player-container {
+    width: 100%;
+    /* 16:9 宽高比，确保播放器不会太高或太扁 */
+    aspect-ratio: 16 / 9; 
+    background: black;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.video-element {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* 确保 n-modal 的内容区域没有不必要的 padding */
+.n-modal.n-card .n-card__content {
+    padding: 0;
+}
+.doc-reader-container {
+    padding: 20px;
+    background: #f8f8f8;
+    /* 计算高度，确保滚动条只在内容区域出现 */
+    height: calc(90vh - 140px); 
+    overflow-y: auto; /* 允许垂直滚动 */
+}
+
+.txt-content {
+    white-space: pre-wrap; /* 关键：保留空格和换行，但允许长行自动换行 */
+    word-wrap: break-word;
+    font-family: monospace; /* 等宽字体更适合阅读代码或纯文本 */
+    font-size: 14px;
+    line-height: 1.6;
+    color: #333;
+    margin: 0;
+}
+.audio-player-container {
+    padding: 20px 0;
+    text-align: center;
+}
+.audio-element {
+    width: 100%; /* 填满模态框宽度 */
 }
 </style>
