@@ -13,6 +13,7 @@ const username = ref('');
 const password = ref('');
 const loginError = ref('');
 const isLoggedIn = ref(false);
+const showRegisterView = ref(false);
 const showSearchView = ref(false);
 const showRankingView = ref(false);
 const searchQuery = ref('');
@@ -49,7 +50,48 @@ const rankingResources = computed(() => {
     .sort((a, b) => (b.times || 0) - (a.times || 0))
     .slice(0, 25);
 });
+async function handleRegister() {
+    loginError.value = '';
+    
+    // 简单的前端验证
+    if (!username.value || !password.value) {
+        loginError.value = '用户名和密码不能为空！';
+        return;
+    }
 
+    try {
+        // 调用后端注册接口
+        const response = await axios.post(`${API_BASE}/api/register`, {
+            username: username.value,
+            password: password.value 
+        });
+
+        // 注册成功
+        alert('注册成功！请使用您的新账户登录。');
+        // 切换回登录界面
+        showRegisterView.value = false;
+        loginError.value = ''; 
+        // 清空密码
+        password.value = '';
+        
+    } catch (err) {
+        console.error('注册失败:', err);
+        // 处理后端返回的错误，例如用户名已存在
+        if (err.response && err.response.data) {
+            loginError.value = err.response.data;
+        } else {
+            loginError.value = '注册失败，请稍后再试。';
+        }
+    }
+}
+
+// 新增切换函数
+function toggleView() {
+    showRegisterView.value = !showRegisterView.value;
+    username.value = ''; // 切换时清空输入
+    password.value = '';
+    loginError.value = '';
+}
 function handleLogin() {
   if (username.value === VALID_USERNAME && password.value === VALID_PASSWORD) {
     loginError.value = '';
@@ -171,23 +213,32 @@ function viewAllResources() {
     :style="{ position: 'fixed', bottom: 0, right: 0, zIndex: 2999 }" api-path="./live2d-static-api/indexes"
     :model="['hk416_3401/hk416_3401', 'default']" :tips="tips" />
   <div v-if="!isLoggedIn" class="login-wrapper">
-    <div class="login-box">
-      <div class="login-header">
-        <h1 class="title">✨ 319资源站</h1>
-      </div>
-      <form @submit.prevent="handleLogin" class="login-form">
-        <div class="input-group">
-          <input v-model="username" type="text" placeholder="用户名" class="input" required />
-        </div>
-        <div class="input-group">
-          <input v-model="password" type="password" placeholder="密码" class="input" required />
-        </div>
-        <button type="submit" class="login-btn">登录</button>
-        <p v-if="loginError" class="error">{{ loginError }}</p>
-        <button type="submit" class="login-btn">注册</button>
-      </form>
+  <div class="login-box">
+    <div class="login-header">
+      <h1 class="title">✨ 319资源站</h1>
     </div>
+    
+    <form @submit.prevent="showRegisterView ? handleRegister() : handleLogin()" class="login-form">
+      <div class="input-group">
+        <input v-model="username" type="text" placeholder="用户名" class="input" required />
+      </div>
+      <div class="input-group">
+        <input v-model="password" type="password" placeholder="密码" class="input" required />
+      </div>
+      
+      <button type="submit" class="login-btn">
+        {{ showRegisterView ? '注册' : '登录' }}
+      </button>
+
+      <p v-if="loginError" class="error">{{ loginError }}</p>
+      
+      <button type="button" class="switch-btn" @click="toggleView">
+        {{ showRegisterView ? '已有账号？去登录' : '没有账号？去注册' }}
+      </button>
+    </form>
+    
   </div>
+</div>
   <div v-else class="main-layout">
     <div v-if="showSearchView" class="search-view">
       <header class="search-header">
@@ -387,7 +438,7 @@ body {
 .login-header .title {
   font-size: 32px;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 30px;
   background: linear-gradient(90deg, #6a5af9, #ff6bcb);
   -webkit-background-clip: text;
   background-clip: text;
@@ -512,7 +563,26 @@ body {
   margin-left: auto;
 }
 
+/* 新增的切换按钮样式 */
+.switch-btn {
+    width: 90%;
+    padding: 10px;
+    margin: 10px 5%;
+    background: none;
+    color: #6a5af9;
+    border: 1px solid #6a5af9;
+    border-radius: 12px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    
+    /* 关键修改：移除焦点边框 */
+    outline: none; 
+}
 
+.switch-btn:hover {
+    background: rgba(106, 90, 249, 0.1);
+}
 .logout-btn {
   background: linear-gradient(90deg, #6a5af9, #8a7bff);
   color: white;

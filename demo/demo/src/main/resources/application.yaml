@@ -14,7 +14,7 @@ spring:
     password: Raiden2005@0720
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-  jpa:
+  jp a:
     hibernate:
       ddl-auto: update 
    
