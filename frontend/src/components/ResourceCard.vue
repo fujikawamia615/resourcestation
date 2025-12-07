@@ -242,4 +242,15 @@ function triggerRead() {
     transform: translateY(-1px);
     box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);
 }
+.read-btn:focus, 
+.play-btn:focus, 
+.audio-btn:focus, 
+.download-btn:focus,
+.read-btn:focus-visible, 
+.play-btn:focus-visible, 
+.audio-btn:focus-visible, 
+.download-btn:focus-visible {
+    outline: none; /* 移除默认的焦点轮廓线 */
+    box-shadow: none; /* 如果有其他阴影，也移除 */
+}
 </style>

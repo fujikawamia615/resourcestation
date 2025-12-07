@@ -169,7 +169,9 @@ public class ResourceController {
         if (lowerCaseFileName.endsWith(".ogg") || lowerCaseFileName.endsWith(".oga")) {
             return "audio/ogg";
         }
-        
+        if (lowerCaseFileName.endsWith(".txt")) {
+            return "text/plain; charset=GBK"; // 假设您的 TXT 是 GBK 编码
+        }
         // 如果无法识别，返回默认的二进制流类型
         return "application/octet-stream";
     }

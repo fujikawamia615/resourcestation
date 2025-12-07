@@ -63,7 +63,7 @@ const showAllResources = ref(false);
 const resources = ref([]);
 const loading = ref(false);
 const error = ref(null);
-const API_BASE = 'http://39.105.154.74:8080';
+const API_BASE = '';
 const featuredResources = computed(() => {
   if (!resources.value || resources.value.length === 0) return [];
   return [...resources.value]
@@ -94,7 +94,7 @@ function playAudio(resource) {
     showAudioPlayerModal.value = true;
 }
 function readDocument(resource) {
-    const docUrl = getResourceDownloadUrl(resource);
+    const docUrl = getResourceStreamUrl(resource);
     
     currentDocUrl.value = docUrl;
     currentDocName.value = resource.name;
@@ -674,10 +674,10 @@ body {
 
 .login-form ::v-deep(.n-input__input-el),
 .login-form ::v-deep(.n-input__placeholder) {
-    text-align: left !important;
+    text-align: left ;
 }
 .login-form ::v-deep(.n-input) {
-    text-align: left !important;
+    text-align: left ;
 }
 .login-form .login-btn {
   width: 40%;
@@ -1238,4 +1238,14 @@ body {
 .audio-element {
     width: 100%; /* 填满模态框宽度 */
 }
+:deep(.n-button:focus-visible) {
+    outline: none !important; /* 强制移除轮廓线 */
+    box-shadow: none !important; /* 确保没有残留的阴影 */
+}
+
+/* 兼容旧版本 Vue/Loader */
+/* ::v-deep(.n-button:focus-visible) {
+    outline: none !important;
+    box-shadow: none !important;
+} */
 </style>
