@@ -55,7 +55,33 @@ public class ResourceController {
         userRepository.save(newUser);
         return ResponseEntity.ok("注册成功!");
     }
-    
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
+
+        // 1. 查找用户
+        return userRepository.findByUsername(request.getUsername())
+            .map(user -> {
+                // 2. 验证旧密码 (基于您现有的登录/注册逻辑，使用明文比较)
+                if (!user.getPassword().equals(request.getOldPassword())) {
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("旧密码错误!");
+                }
+                
+                // 3. 检查新密码是否符合基本要求 (如长度)
+                if (request.getNewPassword() == null || request.getNewPassword().length() < 6) {
+                    return ResponseEntity.badRequest().body("新密码至少需要 6 位!");
+                }
+                
+                // 4. 保存新密码 (⚠️ 警告：明文存储)
+                user.setPassword(request.getNewPassword());
+                userRepository.save(user);
+                
+                return ResponseEntity.ok("密码更改成功，请重新登录。");
+            })
+            .orElseGet(() -> {
+                // 统一返回，不暴露用户是否存在的信息
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("用户不存在或旧密码错误!");
+            });
+    }
     @PostMapping("/login")
     public ResponseEntity<?> loginUser(@RequestBody User loginRequest) {
         return userRepository.findByUsername(loginRequest.getUsername())
