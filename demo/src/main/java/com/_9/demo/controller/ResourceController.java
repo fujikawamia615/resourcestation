@@ -14,12 +14,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.http.HttpStatus;
-
 import com._9.demo.repository.ResourceRepository;
 import com._9.demo.repository.UserRepository;
 import com._9.demo.model.User;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
@@ -145,10 +147,13 @@ public class ResourceController {
     // ----------------------------------------------------
     // 下载接口 (保持不变，用于强制下载)
     // ----------------------------------------------------
+ // ResourceController.java (修改后的 downloadResource 方法)
+
     @GetMapping("/download/resource/{type}/{fileKey}")
     public ResponseEntity<org.springframework.core.io.Resource> downloadResource(
             @PathVariable String type,
-            @PathVariable String fileKey) {
+            @PathVariable String fileKey,
+            @RequestParam(required = true) String username) { // <--- 新增 username 参数
 
         // 1. 查找资源
         com._9.demo.model.Resource resource = resourceRepository.findByFileKeyAndFileType(fileKey, type);
@@ -156,11 +161,42 @@ public class ResourceController {
         if (resource == null) {
             return ResponseEntity.notFound().build();
         }
+        
+        // 2. 更新资源下载次数
         resource.setTimes(resource.getTimes() + 1);
-        resourceRepository.save(resource); 
+        resourceRepository.save(resource);
+        
+        // 3. 记录用户下载历史 <--- 新增的逻辑
+        userRepository.findByUsername(username).ifPresent(user -> {
+            // 假设 Resource 类有一个 getTitle() 方法
+            updateDownloadHistory(user, resource.getName());
+        }); 
 
-        // 2. 正常返回文件
-        return serveFile(type, fileKey, false); // false: 强制下载
+        // 4. 正常返回文件
+        return serveFile(type, fileKey, false);
+    }
+    
+    @PostMapping("/download-history")
+    public ResponseEntity<?> getDownloadHistory(@RequestBody java.util.Map<String, String> requestBody) {
+        
+        String username = requestBody.get("username");
+
+        if (username == null || username.isEmpty()) {
+            return ResponseEntity.badRequest().body("缺少用户名参数。");
+        }
+
+        // 🎯 显式将 Optional<User> 存储起来，避免复杂的链式推断
+        java.util.Optional<com._9.demo.model.User> userOptional = userRepository.findByUsername(username);
+
+        // 检查 Optional 是否包含值
+        if (userOptional.isPresent()) {
+            // 如果存在，返回成功响应
+            com._9.demo.model.User user = userOptional.get();
+            return ResponseEntity.ok(user.getDownloadHistory());
+        } else {
+            // 如果不存在，返回错误响应
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("用户不存在。");
+        }
     }
 
     @GetMapping("/download/cover/{coverName}")
@@ -283,6 +319,33 @@ public class ResourceController {
                     .headers(headers)
                     .contentLength(file.length())
                     .body(resource);
+        }
+    }
+ // ResourceController.java (新增辅助方法)
+
+    private final ObjectMapper objectMapper = new ObjectMapper(); // Jackson JSON 处理实例
+
+    /**
+     * 将资源标题添加到用户的下载历史中
+     * 历史格式：{"资源标题A": 3, "资源标题B": 1}
+     */
+    private void updateDownloadHistory(User user, String resourceTitle) {
+        try {
+            // 1. 反序列化 JSON 字符串到 Map
+            // 注意：使用 TypeReference 来正确处理泛型 Map
+            TypeReference<java.util.Map<String, Integer>> typeRef = new TypeReference<java.util.Map<String, Integer>>() {};
+            java.util.Map<String, Integer> historyMap = objectMapper.readValue(user.getDownloadHistory(), typeRef);
+            
+            // 2. 更新下载次数：如果存在则加 1，否则设为 1
+            historyMap.merge(resourceTitle, 1, Integer::sum);
+            
+            // 3. 序列化 Map 回 JSON 字符串并保存
+            user.setDownloadHistory(objectMapper.writeValueAsString(historyMap));
+            userRepository.save(user);
+            
+        } catch (IOException e) {
+            System.err.println("Error updating download history for user " + user.getUsername() + ": " + e.getMessage());
+            // 可以在这里选择抛出异常或静默失败
         }
     }
 }

@@ -40,6 +40,9 @@ const changePasswordForm = ref({
   newPassword: '',
   confirmPassword: ''
 });
+const showDownloadHistoryModal = ref(false); // 控制模态框显示
+const downloadHistoryList = ref([]); // 存储解析后的历史记录 [{title: 'xxx', count: 3}, ...]
+const downloadHistoryError = ref('');
 const changePasswordError = ref('');
 const changePasswordSuccess = ref('');
 const showDocReaderModal = ref(false);    // 控制阅读器模态框显示
@@ -71,7 +74,7 @@ const showAllResources = ref(false);
 const resources = ref([]);
 const loading = ref(false);
 const error = ref(null);
-const API_BASE = 'http://39.105.154.74:8080';
+const API_BASE = '';
 const featuredResources = computed(() => {
   if (!resources.value || resources.value.length === 0) return [];
   return [...resources.value]
@@ -173,17 +176,55 @@ function handleDropdownSelect(key) {
       changePasswordForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' };
       break;
     case 'download-history':
-      alert('功能待实现：显示下载记录列表。');
+      downloadHistoryError.value = '';
+      fetchDownloadHistory();
       break;
-    case 'logout':
-      dropdownOptions.value = [
-        { label: '更改密码', key: 'change-password', icon: () => '🔑' },
-        { label: '下载记录', key: 'download-history', icon: () => '📜' },
-        { label: '退出登录', key: 'logout', icon: () => '🚪' }
-      ];
-      logout();
       break;
   }
+}
+async function fetchDownloadHistory() {
+    // 假设您在登录后将用户名存储在 username.value 中
+    if (!username.value) {
+        downloadHistoryError.value = '请先登录。';
+        return;
+    }
+    
+    downloadHistoryList.value = [];
+    downloadHistoryError.value = '';
+    
+    try {
+        // 1. 调用后端接口获取响应
+        const response = await axios.post(`${API_BASE}/api/download-history`, {
+            username: username.value
+        });
+
+        // 🎯 核心修正：直接使用 response.data 作为对象
+        // axios 已经帮我们解析了 JSON
+        const historyMap = response.data;
+        
+        const processedList = [];
+
+        // 2. 将 Map 转换成方便 Vue 渲染的数组格式
+        // 检查 historyMap 是否是有效的对象
+        if (historyMap && typeof historyMap === 'object') {
+            for (const [title, count] of Object.entries(historyMap)) {
+                processedList.push({ title, count });
+            }
+        }
+        
+        // 3. (可选) 按下载次数降序排序
+        processedList.sort((a, b) => b.count - a.count);
+
+        downloadHistoryList.value = processedList;
+        showDownloadHistoryModal.value = true; // 显示模态框
+
+    } catch (err) {
+        console.error('获取下载历史失败:', err);
+        // ... 错误处理逻辑保持不变 ...
+        const errorMessage = err.response && err.response.data ? err.response.data : '获取下载历史失败，请检查网络或登录状态。';
+        downloadHistoryError.value = errorMessage;
+        showDownloadHistoryModal.value = true;
+    }
 }
 async function handleChangePassword() {
   changePasswordError.value = '';
@@ -329,8 +370,26 @@ function getCoverUrl(coverName) {
 }
 
 function getResourceDownloadUrl(resource) {
-  if (!resource.fileType || !resource.fileKey) return '#';
-  return `${API_BASE}/api/download/resource/${encodeURIComponent(resource.fileType)}/${encodeURIComponent(resource.fileKey)}`;
+    if (!resource.fileType || !resource.fileKey) return '#';
+
+    const encodedType = encodeURIComponent(resource.fileType);
+    const encodedKey = encodeURIComponent(resource.fileKey);
+
+    // 1. 构造基础 URL (不带用户名)
+    const baseUrl = `${API_BASE}/api/download/resource/${encodedType}/${encodedKey}`;
+
+    // 2. 检查用户是否登录，并获取用户名
+    // 假设您在登录成功后，username.value 存储了当前用户名
+    if (isLoggedIn.value && username.value) {
+        // 3. 拼接查询参数
+        // ❗ 核心修改：在 URL 后面添加 ?username=用户名
+        return `${baseUrl}?username=${encodeURIComponent(username.value)}`;
+    }
+    
+    // 如果未登录，返回基础 URL 或 # (为了安全，最好阻止未登录用户下载)
+    // 您的后端会通过 @RequestParam(required = true) 强制要求这个参数
+    // 如果没有 username，后端会拒绝请求。
+    return baseUrl; 
 }
 
 function handleImageError(e) {
@@ -662,14 +721,56 @@ function viewAllResources() {
     </n-config-provider>
 
     <template #footer>
-    <n-button 
-        type="text" 
-        @click="showChangePasswordModal = false"
-        style="color: #6a5af9; font-weight: 500;"
-    >
+      <n-button type="text" @click="showChangePasswordModal = false" style="color: #6a5af9; font-weight: 500;">
         取消
-    </n-button>
-</template>
+      </n-button>
+    </template>
+  </n-modal>
+  <n-modal v-model:show="showDownloadHistoryModal" preset="card" :mask-closable="true"
+    :style="{ width: '90%', maxWidth: '600px' }">
+    <template #header>
+      <h2>📜 下载记录 - {{ username }}</h2>
+    </template>
+
+    <div v-if="downloadHistoryError" class="error" style="padding: 10px; color: red;">
+      {{ downloadHistoryError }}
+    </div>
+
+    <n-card v-else :bordered="false" size="small">
+      <n-list v-if="downloadHistoryList.length > 0" bordered clickable>
+        <n-list-item v-for="(item, index) in downloadHistoryList" :key="index">
+          <div class="history-item">
+            <span class="rank-icon" :class="{ 'top-rank': index < 3 }">
+              {{ index < 3 ? '🔥' : (index + 1) + '.' }} </span>
+                <span class="resource-title">{{ item.title }}</span>
+                <span class="download-count">
+                  <n-tag type="info" size="small" round>
+                    下载 {{ item.count }} 次
+                  </n-tag>
+                </span>
+          </div>
+        </n-list-item>
+      </n-list>
+
+      <n-empty v-else description="暂无下载记录" size="large" style="padding: 40px 0;">
+        <template #extra>
+          <n-button size="small" type="info" @click="showDownloadHistoryModal = false">
+            去首页浏览资源
+          </n-button>
+        </template>
+      </n-empty>
+
+    </n-card>
+
+    <template #footer>
+      <n-button type="text" @click="showDownloadHistoryModal = false" style="color: #666; font-weight: 500;">
+        关闭
+      </n-button>
+    </template>
+  </n-modal>
+
+  <n-modal v-model:show="showChangePasswordModal" preset="card" :mask-closable="true"
+    :style="{ width: '90%', maxWidth: '450px' }">
   </n-modal>
 </template>
 <style>
@@ -876,7 +977,32 @@ body {
   /* 关键修改：移除焦点边框 */
   outline: none;
 }
-
+/* 示例 CSS 样式 */
+.history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+.rank-icon {
+    font-weight: bold;
+    min-width: 30px;
+    text-align: center;
+}
+.top-rank {
+    color: #ff4500; /* 突显前三名 */
+}
+.resource-title {
+    flex-grow: 1;
+    margin: 0 15px;
+    font-size: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.download-count {
+    flex-shrink: 0;
+}
 .switch-btn:hover {
   background: rgba(106, 90, 249, 0.1);
 }
@@ -1194,30 +1320,33 @@ body {
   animation: spin 1s linear infinite;
   margin: 0 auto 16px;
 }
+
 /* 在 <style scoped> 标签中添加 */
 
 .success-msg {
-    color: #10b981; /* 绿色 */
-    font-size: 14px;
-    margin-top: 12px;
-    padding: 8px 12px;
-    background: rgba(16, 185, 129, 0.1);
-    border-radius: 6px;
-    border: 1px solid rgba(16, 185, 129, 0.2);
-    text-align: center;
+  color: #10b981;
+  /* 绿色 */
+  font-size: 14px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 6px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  text-align: center;
 }
 
 /* 确保 .error 样式已存在或在此处定义 */
 .error {
-    color: #ef4444;
-    font-size: 14px;
-    margin-top: 12px;
-    padding: 8px 12px;
-    background: rgba(239, 68, 68, 0.1);
-    border-radius: 6px;
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    text-align: center;
+  color: #ef4444;
+  font-size: 14px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 6px;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  text-align: center;
 }
+
 @keyframes spin {
   0% {
     transform: rotate(0deg);
