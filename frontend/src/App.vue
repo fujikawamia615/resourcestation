@@ -606,8 +606,8 @@ function viewAllResources() {
         <div class="community-header-content">
           <button @click="showCommunityView = false" class="back-btn">← 返回</button>
           <h2>💬 社区讨论</h2>
-          <n-button type="primary" size="medium" @click="showPostModal = true; postError = ''; postSuccess = ''"
-            style="background: linear-gradient(90deg, #6a5af9, #8a7bff); border: none;">
+          <n-button text type="info" size="medium" @click="showPostModal = true; postError = ''; postSuccess = ''"
+            style="font-weight: 500;">
             发布新帖
           </n-button>
         </div>
@@ -1200,8 +1200,9 @@ body {
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
+  /* 🎯 新增: 确保内容左对齐 */
+  text-align: left;
 }
-
 .post-footer {
   display: flex;
   justify-content: space-between;
@@ -1460,8 +1461,7 @@ body {
 .search-results,
 .container,
 .filter-results,
-.community-list-container
- {
+.community-list-container {
   flex: 1;
   overflow-y: auto;
   width: 100%;
