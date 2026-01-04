@@ -73,8 +73,6 @@
 * **熟悉 Vue 3 的 Composition API** 和生态工具链。
 * **掌握 Naive UI** 组件的高效使用。
 * **实践 Spring Boot** 的 RESTful API 设计和数据层交互。
-本项目存在的问题：
-安全校验和日志记录(aop)基本没写，安全性上存在问题。
 ---
 
 ## 📄 许可证 (License)
