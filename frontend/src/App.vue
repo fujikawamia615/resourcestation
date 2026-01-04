@@ -7,7 +7,7 @@ import { NInput, NButton, NForm, NFormItem, NConfigProvider, NAvatar, NDropdown,
 onMounted(() => {
   document.documentElement.classList.add('loaded');
 });
-const API_BASE = 'http://39.105.154.74:8080';
+const API_BASE = '';
 const tips = ref({ visibilitychange: [{ selector: 'document', texts: ['哇，你终于回来了～'] }] });
 const width = ref(400);
 const height = ref(400);
