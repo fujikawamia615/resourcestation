@@ -4,9 +4,9 @@ spring:
   application:
     name: demo
   datasource:
-    url: jdbc:mysql://fujikawamia.rwlb.rds.aliyuncs.com:3306/resources_db?useSSL=false&serverTimezone=Asia/Shanghai
-    username: xixixi
-    password: Raiden2005@0720
+    url: 
+    username: 
+    password: 
     driver-class-name: com.mysql.cj.jdbc.Driver
   jp a:
     hibernate:
