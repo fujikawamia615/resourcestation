@@ -1,14 +1,14 @@
-# 🌟 Resource Station (资源站练习项目)
-## 📚 个人全栈学习与实践的资源分享平台
+#  Resource Station (资源站练习项目)
+##  个人全栈学习与实践的资源分享平台
 
 
 ---
 
-## ✨ 项目简介 (Project Overview)
+##  项目简介 (Project Overview)
 
 本项目是一个基于前后端分离的全栈**资源分享/学习交流平台**的练习项目。旨在通过实战掌握现代 Web 开发技术栈，并提供一个简洁、美观的资源展示与搜索界面。
 
-### 🚀 技术栈 (Tech Stack)
+###  技术栈 (Tech Stack)
 
 | 模块 | 技术 | 描述 |
 | :--- | :--- | :--- |
@@ -20,7 +20,7 @@
 
 ---
 
-## 🛠️ 安装与部署 (Installation & Setup)
+##  安装与部署 (Installation & Setup)
 
 本项目包含**前端**和**后端**两个部分，需分别启动。
 
@@ -58,7 +58,7 @@
 
 ---
 
-## 🚀 快速使用 (Quick Start)
+##  快速使用 (Quick Start)
 
 项目启动后，您可以通过以下方式访问和使用核心功能：
 
@@ -67,19 +67,20 @@
     * **资源分类浏览：** 根据资源的不同类型进行在线浏览和下载
     * **Live2D 互动：** 访问页面右下角，与可爱的 Live2D 角色进行互动。
 
-## 🎯 目标与挑战 (Goals & Challenges)
+##  目标与挑战 (Goals & Challenges)
 
 本项目主要目标是：
 * **熟悉 Vue 3 的 Composition API** 和生态工具链。
 * **掌握 Naive UI** 组件的高效使用。
 * **实践 Spring Boot** 的 RESTful API 设计和数据层交互。
-
+本项目存在的问题：
+安全校验和日志记录(aop)基本没写，安全性上存在问题。
 ---
 
 ## 📄 许可证 (License)
 
 本项目采用 **MIT** 许可证。详情请参阅项目根目录下的 `LICENSE` 文件。
 
-## 📞 联系方式 (Contact)
+##  联系方式 (Contact)
 
-fujikawa_mia@outlook.com
+Xixixi_h@outlook.com
